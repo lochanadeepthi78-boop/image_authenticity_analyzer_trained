@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Authenticity Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="nav-logo">
+            <span class="logo-icon">&#128247;</span>
+            <span class="logo-text">ImageTruth <span class="logo-sub">Analyzer</span></span>
+        </div>
+        <div class="nav-links">
+            <a href="#upload-section" class="nav-link">Analyze</a>
+            <a href="#how" class="nav-link">How It Works</a>
+            <a href="#features" class="nav-link">Features</a>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <h1 class="hero-title">Real or <span class="accent-text">AI-Generated?</span></h1>
+        <p class="hero-subtitle">
+            Forensic analysis that separately checks for AI-generation signals, editing/manipulation,
+            and JPEG compression. Upload an image and receive an authenticity report with confidence scores.
+        </p>
+        <p class="hero-disclaimer">This is a heuristic / educational tool, not scientific proof of authenticity.</p>
+    </section>
+
+    <section id="upload-section" class="upload-section">
+        <div class="upload-card" id="uploadCard">
+            <div class="upload-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+            </div>
+            <h2 class="upload-title">Drop your image here</h2>
+            <p class="upload-subtitle">or click to browse</p>
+            <p class="upload-formats">PNG, JPG, JPEG, BMP, WEBP, TIFF, GIF &middot; Max 16 MB</p>
+            <input type="file" id="imageInput" accept="image/*" hidden>
+            <button class="btn-browse" id="browseBtn">Browse Files</button>
+        </div>
+        <div class="preview-container" id="previewContainer" hidden>
+            <img id="previewImage" alt="Preview" class="preview-image">
+            <button class="btn-reset" id="resetBtn">&#8635; Change Image</button>
+        </div>
+        <button class="btn-analyze" id="analyzeBtn" disabled>Analyze Image</button>
+    </section>
+
+    <div class="loadingOverlay" id="loadingOverlay">
+        <div class="loader"></div>
+        <p class="loading-text">Analyzing image forensics...</p>
+    </div>
+
+    <section id="results" class="results-section" hidden>
+        <h2 class="results-heading">Analysis Report</h2>
+
+        <div class="result-card result-image-card main-result-card">
+            <img id="resultImage" alt="Analyzed image" class="result-image">
+            <p id="resultFilename" class="result-filename"></p>
+            <div class="verdict-box" id="verdictBox">
+                <span id="verdictLabel" class="verdict-label"></span>
+            </div>
+            <p class="model-disclaimer" id="modelDisclaimer"></p>
+        </div>
+
+        <div class="results-grid">
+            <div class="result-card ai-card">
+                <h3 class="card-title">AI Detection</h3>
+                <div class="probability-bars">
+                    <div class="prob-row">
+                        <span class="prob-label ai-label">AI-GENERATED</span>
+                        <div class="prob-bar-track">
+                            <div class="prob-bar ai-bar" id="aiBar" style="width: 0%"></div>
+                        </div>
+                        <span class="prob-value" id="aiValue">0%</span>
+                    </div>
+                    <div class="prob-row">
+                        <span class="prob-label real-label">REAL / ORGANIC</span>
+                        <div class="prob-bar-track">
+                            <div class="prob-bar real-bar" id="realBar" style="width: 0%"></div>
+                        </div>
+                        <span class="prob-value" id="realValue">0%</span>
+                    </div>
+                </div>
+                <h4 class="indicator-subtitle">AI Detection Signals</h4>
+                <ul class="reason-list" id="reasonList"></ul>
+            </div>
+
+            <div class="result-card manipulation-card">
+                <h3 class="card-title">Manipulation Detection</h3>
+                <div class="manip-result">
+                    <div class="manip-badge" id="manipBadge"></div>
+                    <p id="manipLabel" class="manip-label"></p>
+                    <p class="manip-confidence" id="manipConfidence"></p>
+                </div>
+                <ul class="reason-list" id="manipIndicators"></ul>
+                <div class="manip-metrics">
+                    <div class="metric-item">
+                        <span class="metric-name">ELA Score</span>
+                        <span class="metric-value" id="elaScore">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-name">Modified Pixels</span>
+                        <span class="metric-value" id="modPixels">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-name">Noise Std Dev</span>
+                        <span class="metric-value" id="noiseStd">-</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-name">Edge Density</span>
+                        <span class="metric-value" id="edgeDensity">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result-card compression-card">
+                <h3 class="card-title">Compression Analysis</h3>
+                <div class="manip-result">
+                    <div class="manip-badge" id="compBadge"></div>
+                    <p id="compLabel" class="manip-label"></p>
+                </div>
+                <ul class="reason-list" id="compIndicators"></ul>
+                <div class="metric-item">
+                    <span class="metric-name">Source Format</span>
+                    <span class="metric-value" id="compFormat">-</span>
+                </div>
+            </div>
+
+            <div class="result-card forensics-card">
+                <h3 class="card-title">Forensic Indicators</h3>
+                <div class="texture-details" id="textureDetails"></div>
+                <div class="forensic-details" id="forensicDetails"></div>
+            </div>
+
+            <div class="result-card dimensions-card">
+                <h3 class="card-title">Image Information</h3>
+                <div class="dim-details" id="dimDetails"></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="how" class="how-section">
+        <h2 class="section-title">How It Works</h2>
+        <div class="how-grid">
+            <div class="how-card">
+                <div class="how-number">1</div>
+                <h3 class="how-title">Upload Image</h3>
+                <p class="how-desc">Choose any image file for analysis. Our system reads the file and prepares it for forensic examination.</p>
+            </div>
+            <div class="how-card">
+                <div class="how-number">2</div>
+                <h3 class="how-title">Three Independent Checks</h3>
+                <p class="how-desc">AI-generation likelihood, editing/manipulation evidence, and JPEG compression are analyzed separately, so one never wrongly influences another.</p>
+            </div>
+            <div class="how-card">
+                <div class="how-number">3</div>
+                <h3 class="how-title">Instant Results</h3>
+                <p class="how-desc">Receive a detailed report with a clear REAL / EDITED / AI-GENERATED / UNCERTAIN result plus the forensic evidence behind it.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="features" class="features-section">
+        <h2 class="section-title">Key Features</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">&#129302;</div>
+                <h3>AI vs Real Detection</h3>
+                <p>Estimates AI-generation likelihood using spectral, noise, and texture forensics.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128269;</div>
+                <h3>Confidence Scores</h3>
+                <p>Probability estimate for each classification, with an UNCERTAIN result when evidence is weak.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128275;</div>
+                <h3>Manipulation Detection</h3>
+                <p>Looks for local editing and compositing evidence using Error Level Analysis, kept separate from compression.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#9889;</div>
+                <h3>Instant Processing</h3>
+                <p>Results in seconds with a user-friendly web interface. No technical knowledge required.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2026 ImageTruth Analyzer &middot; Educational forensic mini-project</p>
+        <p class="footer-note">Heuristic forensic assessment, not scientific proof of authenticity. For verification, journalism, cybersecurity &amp; digital forensics education.</p>
+    </footer>
+
+    <script>
+        const uploadCard = document.getElementById('uploadCard');
+        const fileInput = document.getElementById('imageInput');
+        const browseBtn = document.getElementById('browseBtn');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const resetBtn = document.getElementById('resetBtn');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const resultsSection = document.getElementById('results');
+
+        let selectedFile = null;
+
+        browseBtn.addEventListener('click', () => fileInput.click());
+        uploadCard.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                selectedFile = file;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    previewImage.src = ev.target.result;
+                    uploadCard.style.display = 'none';
+                    previewContainer.hidden = false;
+                    analyzeBtn.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            selectedFile = null;
+            fileInput.value = '';
+            previewContainer.hidden = true;
+            uploadCard.style.display = '';
+            analyzeBtn.disabled = true;
+            resultsSection.hidden = true;
+        });
+
+        analyzeBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            loadingOverlay.classList.add('active');
+            analyzeBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('image', selectedFile);
+
+            try {
+                const res = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    renderResults(data);
+                } else {
+                    alert(data.error || 'Analysis failed. Please try again.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Network error. Is the server running?');
+            } finally {
+                loadingOverlay.classList.remove('active');
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        function verdictClass(mainResult) {
+            if (mainResult === 'AI-GENERATED') return 'verdict-ai';
+            if (mainResult === 'EDITED / MANIPULATED') return 'verdict-edited';
+            if (mainResult === 'UNCERTAIN') return 'verdict-uncertain';
+            return 'verdict-real';
+        }
+
+        function renderResults(data) {
+            resultsSection.hidden = false;
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+
+            document.getElementById('resultImage').src = data.image_url;
+            document.getElementById('resultFilename').textContent = 'Analyzed: ' + data.filename;
+
+            const verdictBox = document.getElementById('verdictBox');
+            const mainResult = data.main_result;
+            verdictBox.className = 'verdict-box ' + verdictClass(mainResult);
+            document.getElementById('verdictLabel').textContent = mainResult;
+
+            document.getElementById('modelDisclaimer').textContent = data.model_used
+                ? 'Based on the trained image classifier included with this project.'
+                : 'Based on handcrafted forensic heuristics (no trained ML model yet) - treat as an estimate, not proof.';
+
+            const aiProb = data.ai_probability;
+            const realProb = data.real_probability;
+            document.getElementById('aiBar').style.width = aiProb + '%';
+            document.getElementById('realBar').style.width = realProb + '%';
+            document.getElementById('aiValue').textContent = aiProb + '%';
+            document.getElementById('realValue').textContent = realProb + '%';
+
+            const reasons = document.getElementById('reasonList');
+            if (data.reasons && data.reasons.length) {
+                reasons.innerHTML = data.reasons.map(r => `<li>&#8226; ${r}</li>`).join('');
+            } else {
+                reasons.innerHTML = '<li>&#8226; No strong AI-generation signals detected</li>';
+            }
+
+            const td = document.getElementById('textureDetails');
+            td.innerHTML = `
+                <div class="metric-item"><span class="metric-name">Imaging Entropy</span><span class="metric-value">${data.texture.entropy}</span></div>
+                <div class="metric-item"><span class="metric-name">Edge Sharpness</span><span class="metric-value">${data.texture.edge_sharpness}</span></div>
+                <div class="metric-item"><span class="metric-name">Texture Uniformity</span><span class="metric-value">${data.texture.texture_uniformity}</span></div>
+                <div class="metric-item"><span class="metric-name">Smoothness</span><span class="metric-value">${data.texture.smoothness}</span></div>
+            `;
+
+            const manip = data.manipulation;
+            const manipBadge = document.getElementById('manipBadge');
+            manipBadge.className = 'manip-badge ' + (manip.detected ? 'badge-alert' : 'badge-clean');
+            manipBadge.innerHTML = manip.detected ? '&#9888; DETECTED' : '&#10003; CLEAN';
+            document.getElementById('manipLabel').textContent = manip.label;
+            document.getElementById('manipConfidence').textContent = 'Confidence: ' + manip.confidence + '%';
+            const manipIndicators = document.getElementById('manipIndicators');
+            manipIndicators.innerHTML = (manip.indicators && manip.indicators.length)
+                ? manip.indicators.map(i => `<li>&#8226; ${i}</li>`).join('')
+                : '<li>&#8226; No manipulation indicators found</li>';
+
+            document.getElementById('elaScore').textContent = data.ela.mean;
+            document.getElementById('modPixels').textContent = data.ela.modified_pixels_pct + '%';
+            document.getElementById('noiseStd').textContent = data.noise.noise_std;
+            document.getElementById('edgeDensity').textContent = data.noise.edge_density_pct + '%';
+
+            const comp = data.compression;
+            const compBadge = document.getElementById('compBadge');
+            compBadge.className = 'manip-badge ' + (comp.detected ? 'badge-alert' : 'badge-clean');
+            compBadge.innerHTML = comp.detected ? '&#9888; LOSSY' : '&#10003; CLEAN';
+            document.getElementById('compLabel').textContent = comp.label;
+            document.getElementById('compFormat').textContent = comp.source_format;
+            const compIndicators = document.getElementById('compIndicators');
+            compIndicators.innerHTML = (comp.indicators && comp.indicators.length)
+                ? comp.indicators.map(i => `<li>&#8226; ${i}</li>`).join('')
+                : '<li>&#8226; No compression indicators found</li>';
+
+            const f = data.frequency;
+            document.getElementById('forensicDetails').innerHTML = `
+                <div class="metric-item"><span class="metric-name">Low Frequency</span><span class="metric-value">${f.low_freq_pct}%</span></div>
+                <div class="metric-item"><span class="metric-name">Mid Frequency</span><span class="metric-value">${f.mid_freq_pct}%</span></div>
+                <div class="metric-item"><span class="metric-name">High Frequency</span><span class="metric-value">${f.high_freq_pct}%</span></div>
+                <div class="metric-item"><span class="metric-name">Spectral Flatness</span><span class="metric-value">${f.spectral_flatness}</span></div>
+                <div class="metric-item"><span class="metric-name">DCT Grid</span><span class="metric-value">${data.dct.grid_strength_coeff}</span></div>
+            `;
+
+            const d = data.dimensions;
+            document.getElementById('dimDetails').innerHTML = `
+                <div class="metric-item"><span class="metric-name">Width</span><span class="metric-value">${d.width} px</span></div>
+                <div class="metric-item"><span class="metric-name">Height</span><span class="metric-value">${d.height} px</span></div>
+                <div class="metric-item"><span class="metric-name">Aspect Ratio</span><span class="metric-value">${d.aspect_ratio}</span></div>
+            `;
+        }
+    </script>
+</body>
+</html>
